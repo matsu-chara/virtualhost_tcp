@@ -1,6 +1,13 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+def install_plugin(plugin)
+  system "vagrant plugin install #{plugin}" unless Vagrant.has_plugin? plugin
+end
+
+# 必要なプラグイン
+install_plugin('vagrant-vbguest')
+
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -12,7 +19,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "centOS/7"
+  config.vm.box = "centos/7"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -70,8 +77,9 @@ Vagrant.configure("2") do |config|
   # Enable provisioning with a shell script. Additional provisioners such as
   # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
   # documentation for more information about their specific syntax and use.
-  # config.vm.provision "shell", inline: <<-SHELL
-  #   apt-get update
-  #   apt-get install -y apache2
-  # SHELL
+  # umount /mnt がエラーになってしまうのでmoduleをアップデートする
+  # 本来はkernel周りだけ上げれば良いが調べるのも面倒なので雑にすべてをupdateしている
+  config.vm.provision "shell", inline: <<-SHELL
+    yum -y install kernel kernel-headers kernel-devel kernel-tools kernel-tools-libs
+  SHELL
 end
