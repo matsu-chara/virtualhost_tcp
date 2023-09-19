@@ -171,6 +171,10 @@ int init_socket(char *device)
     struct sockaddr_ll sa;
     int soc;
 
+    // AF_PACKET = address family packet (only available in linux)
+    // SOCK_RAW = L2ヘッダも含めて取得 (SOCK_DGRAM ならL2は破棄される)
+    // htons = convert short from host to network order
+    // ETH_P_ALL = Every packet
     if ((soc = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0)
     {
         perror("socket");
@@ -178,6 +182,7 @@ int init_socket(char *device)
     }
 
     strcpy(if_req.ifr_name, device);
+    // SIOCGIFINDEX = system io controll get I/F index
     if (ioctl(soc, SIOCGIFINDEX, &if_req) < 0)
     {
         perror("ioctl");
@@ -188,6 +193,8 @@ int init_socket(char *device)
     sa.sll_family = PF_PACKET;
     sa.sll_protocol = htons(ETH_P_ALL);
     sa.sll_ifindex = if_req.ifr_ifindex;
+
+    // sockaddr_ll = socket address link level は sockaddrにcast可能 (sockaddr自体が汎用構造)
     if (bind(soc, (struct sockaddr *)&sa, sizeof(sa)) < 0)
     {
         perror('bind');
@@ -202,6 +209,9 @@ int init_socket(char *device)
         return -1;
     }
 
+    // IFF は多分interface flagの略
+    // IFF_PROMISC プロミスキャスモードを設定して自分宛て以外のパケットも取得
+    // IFF_UP インターフェースが起動中
     if_req.ifr_flags = if_req.ifr_flags | IFF_PROMISC | IFF_UP;
     if (ioctl(soc, SIOCSIFFLAGS, &if_req) < 0)
     {
