@@ -19,7 +19,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "centos/7"
+  config.vm.box = "bento/centos-7"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -80,6 +80,6 @@ Vagrant.configure("2") do |config|
   # umount /mnt がエラーになってしまうのでmoduleをアップデートする
   # 本来はkernel周りだけ上げれば良いが調べるのも面倒なので雑にすべてをupdateしている
   config.vm.provision "shell", inline: <<-SHELL
-    yum -y install kernel kernel-headers kernel-devel kernel-tools kernel-tools-libs
+    yum -y update
   SHELL
 end
