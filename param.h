@@ -10,7 +10,7 @@ typedef struct
     char *device;
     u_int8_t mymac[6];
     struct in_addr myip;
-    u_int8_t vmac[6];
+    u_int8_t vmac[6]; // virtual mac address
     struct in_addr vip;
     struct in_addr vmask;
     int IpTTL;

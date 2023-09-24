@@ -8,17 +8,17 @@
 #include <sys/ioctl.h>
 #include <netpacket/packet.h>
 #include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
 #include <netinet/if_ether.h>
 #include <linux/if.h>
 #include <arpa/inet.h>
+#include <net/ethernet.h>
 
 #include "param.h"
 
 extern PARAM Param;
 
 u_int8_t AllZeroMac[6] = {0, 0, 0, 0, 0, 0};
-u_int8_t BcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+u_int8_t BcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // broadcast
 
 char *my_ether_ntoa_r(u_int8_t *hwaddr, char *buf)
 {
@@ -132,8 +132,65 @@ void print_ether_header(struct ether_header *eh)
 
 int EtherSend(int soc, u_int8_t smac[6], u_int8_t dmac[6], u_int16_t type, u_int8_t *data, int len)
 {
-}
+    // socはsocket (のファイルディスクリプタ)
+    // typeはイーサネットタイプ
+
+    struct ether_header *eh;
+    u_int8_t *ptr, sbuf[sizeof(struct ether_header) + ETHERMTU]; // ETHER MTU は1500bytes
+
+    if (len > ETHERMTU)
+    {
+        printf("EtherSend:data too long:%d\n", len);
+        return -1;
+    }
+
+    ptr = sbuf;
+    eh = (struct ether_header *)ptr;
+    memset(eh, 0, sizeof(struct ether_header));
+    memcpy(eh->ether_dhost, dmac, 6); // MACアドレスは6byte
+    memcpy(eh->ether_shost, smac, 6);
+    eh->ether_type = htons(type);
+    ptr += sizeof(struct ether_header);
+
+    memcpy(ptr, data, len);
+    ptr += len;
+
+    if ((ptr - sbuf) < ETH_ZLEN) // ETH_ZLEN(60byte) ethernetでは60byte未満のパケットは異常パケットとして破棄されるのでpaddingする
+    {
+        int padlen = ETH_ZLEN - (ptr - sbuf);
+        memset(ptr, 0, padlen);
+        ptr += padlen;
+    }
+
+    write(soc, sbuf, ptr - sbuf);
+    print_ether_header(eh);
+
+    return 0;
+};
 
 int EtherRecv(int soc, u_int8_t *in_ptr, int in_len)
 {
+    struct ether_header *eh;
+    u_int8_t *ptr = in_ptr;
+    int len = in_len;
+
+    eh = (struct ether_header *)ptr;
+    ptr += sizeof(struct ether_header);
+    len -= sizeof(struct ether_header);
+
+    if (memcmp(eh->ether_dhost, BcastMac, 6) != 0 && memcmp(eh->ether_dhost, Param.vmac, 6) != 0)
+    {
+        return -1;
+    }
+
+    if (ntohs(eh->ether_type) == ETHERTYPE_ARP)
+    {
+        ArpRecv(soc, eh, ptr, len);
+    }
+    else if (ntohs(eh->ether_type) == ETHERTYPE_IP)
+    {
+        IpRecv(soc, in_ptr, in_len, eh, ptr, len);
+    }
+
+    return 0;
 }
