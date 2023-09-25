@@ -6,8 +6,7 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "_POSIX_C_SOURCE=200809",
-                "_XOPEN_SOURCE=700"
+                "_GNU_SOURCE"
             ],
             "cStandard": "c17",
             "cppStandard": "c++17",
