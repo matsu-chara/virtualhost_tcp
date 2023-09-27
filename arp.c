@@ -7,15 +7,12 @@
 #include <time.h>
 #include <sys/ioctl.h>
 #include <netpacket/packet.h>
-// #include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#include <linux/if.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <pthread.h>
 
 #include "param.h"
-#include "ether.c"
 
 extern PARAM Param;
 
@@ -374,7 +371,7 @@ int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
     if (ntohs(arp->arp_op) == ARPOP_REQUEST) // 他所からのARPリクエスト
     {
         struct in_addr addr;
-        addr.s_addr = (arp->arp_tpa[3] << 24 | (arp->arp_tpa[2] << 16) | (arp->arp_tpa[1] << 8) | (arp->arp_tpa[0]));
+        addr.s_addr = (arp->arp_tpa[3] << 24) | (arp->arp_tpa[2] << 16) | (arp->arp_tpa[1] << 8) | (arp->arp_tpa[0]);
         if (isTargetIPAddr(&addr))
         {
             printf("--- recv ---[\n");
@@ -382,7 +379,7 @@ int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
             print_ether_arp(arp);
             printf(")\n");
 
-            addr.s_addr=(arp->arp_spa[3]<<24)|(arp->arp_spa[2]<<16)|(arp->arp_spa[1]<<8|(arp->arp_spa[0]);
+            addr.s_addr=(arp->arp_spa[3]<<24)|(arp->arp_spa[2]<<16)|(arp->arp_spa[1]<<8)|(arp->arp_spa[0]);
             ArpAddTable(arp->arp_sha,&addr);
             ArpSend(soc, ARPOP_REPLY, Param.vmac, eh->ether_shost, Param.vmac, arp->arp_sha, arp->arp_tpa, arp->arp_spa);
         }
