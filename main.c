@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 // #include <netinet/ip_icmp.h>
 #include <netinet/if_ether.h>
 #include <net/if.h>
