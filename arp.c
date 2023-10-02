@@ -13,6 +13,7 @@
 #include <pthread.h>
 
 #include "param.h"
+#include "ether.h"
 
 extern PARAM Param;
 
@@ -105,7 +106,7 @@ void print_ether_arp(struct ether_arp *ether_arp)
         printf("(Address resolution)\n");
         break;
     case ETHERTYPE_REVARP:
-        print("(Reverse ARP)\n");
+        printf("(Reverse ARP)\n");
         break;
     default:
         printf("(unknown)\n");

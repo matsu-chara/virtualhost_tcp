@@ -6,14 +6,18 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-// #include <netinet/ip_icmp.h>
+#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-// #include <sys/wait.h>
 #include <pthread.h>
 
 #include "param.h"
+#include "ether.h"
+#include "cmd.h"
+#include "arp.h"
+#include "sock.h"
+#include "ip.h"
 
 int EndFlag = 0;
 int DeviceSoc; // 送受信するPF_PACKETのディスクリプタを格納(PF = protocol family.)
@@ -91,6 +95,8 @@ void *StdInThread(void *arg)
             break;
         }
     }
+
+    return NULL;
 }
 
 void sig_term(int sig)
@@ -175,7 +181,7 @@ int show_ifreq(char *name)
 
     if (ioctl(soc, SIOCGIFMTU, &ifreq) == -1)
     {
-        perror('ioctl:mtu');
+        perror("ioctl:mtu");
     }
     else
     {
@@ -277,7 +283,7 @@ int main(int argc, char *argv[])
         printf("pthread_create:error\n");
     }
 
-    if (ArpCheckGArap(DeviceSoc) == 0)
+    if (ArpCheckGArp(DeviceSoc) == 0)
     {
         printf("GArp check fail\n");
         return -1;
