@@ -197,14 +197,14 @@ int init_socket(char *device)
     // sockaddr_ll = socket address link level は sockaddrにcast可能 (sockaddr自体が汎用構造)
     if (bind(soc, (struct sockaddr *)&sa, sizeof(sa)) < 0)
     {
-        perror('bind');
+        perror("bind");
         close(soc);
         return -1;
     }
 
     if (ioctl(soc, SIOCGIFFLAGS, &if_req) < 0)
     {
-        perror('ioctl');
+        perror("ioctl");
         close(soc);
         return -1;
     }

@@ -17,6 +17,7 @@
 #include "sock.h"
 #include "ether.h"
 #include "arp.h"
+#include "icmp.h"
 
 extern PARAM Param;
 
@@ -214,7 +215,7 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
 
     plen = ntohs(ip->ip_len) - ip->ip_hl * 4; // packet length
     no = IpRecvBufAdd(ntohs(ip->ip_id));
-    off = n(ntohs(ip->ip_off) & IP_OFFMASK) * 8; // offsetの8倍が実際のオフセットバイト数
+    off = (ntohs(ip->ip_off) & IP_OFFMASK) * 8; // offsetの8倍が実際のオフセットバイト数
     memcpy(IpRecvBuf[no].data + off, ptr, plen);
     if (!(ntohs(ip->ip_off) & IP_MF)) // IP_MF = more fragments flag。これがONならまだフラグメントされたデータが届く
     {

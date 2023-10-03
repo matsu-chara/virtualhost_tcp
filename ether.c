@@ -14,6 +14,8 @@
 #include <net/ethernet.h>
 
 #include "param.h"
+#include "arp.h"
+#include "ip.h"
 
 extern PARAM Param;
 

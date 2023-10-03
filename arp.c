@@ -14,6 +14,7 @@
 
 #include "param.h"
 #include "ether.h"
+#include "sock.h"
 
 extern PARAM Param;
 
@@ -158,11 +159,14 @@ int ArpAddTable(u_int8_t mac[6], struct in_addr *ipaddr)
                 {
                     char buf1[80], buf2[80], buf3[80];
                     // inet_ntop: convert internet address to text format
-                    printf("ArpAddTable:%s:receive different mac:(%s):(^s)\n", inet_ntop(AF_INET, ipaddr, buf1, sizeof(buf1)), my_ether_ntoa_r(ArpTable[i].mac, buf2), my_ether_ntoa_r(mac, buf3));
+                    printf("ArpAddTable:%s:receive different mac:(%s):(%s)\n",
+                    inet_ntop(AF_INET, ipaddr, buf1, sizeof(buf1)),
+                    my_ether_ntoa_r(ArpTable[i].mac, buf2),
+                    my_ether_ntoa_r(mac, buf3));
                 }
                 memcpy(ArpTable[i].mac, mac, 6);
                 ArpTable[i].timestamp = time(NULL);
-                pthred_rwlock_unlock(&ArpTableLock);
+                pthread_rwlock_unlock(&ArpTableLock);
                 return i;
             }
             if (ArpTable[i].timestamp < oldestTime)
@@ -253,44 +257,6 @@ int ArpShowTable()
     return 0;
 }
 
-// 受信リクエストを受けたときに、そのスレッドでこの関数を呼ぶとブロックしてしまってArpReplyを処理できないので永遠にARPが解決できない問題がある
-int GetTargetMac(int soc, struct in_addr *daddr, u_int8_t dmac[6], int gratuitous)
-{
-    int count;
-    struct in_addr addr;
-
-    if (isSameSubnet(daddr))
-    {
-        addr.s_addr = daddr->s_addr;
-    }
-    else
-    {
-        addr.s_addr = Param.gateway.s_addr;
-    }
-
-    count = 0;
-
-    while (!ArpSearchTable(&addr, dmac))
-    {
-        if (gratuitous)
-        {
-            // 自分自身に設定するIPアドレスが重複していないかどうかを検出するためのリクエスト
-            ArpSendRequestGratuitous(soc, &addr);
-        }
-        else
-        {
-            ArpSendRequest(soc, &addr);
-        }
-        DummyWait(DUMMY_WAIT_MS * (count + 1));
-        count++;
-        if (count > RETRY_COUNT)
-        {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 int ArpSend(int soc, u_int16_t op, u_int8_t e_smac[6], u_int8_t e_dmac[6], u_int8_t smac[6], u_int8_t dmac[6], u_int8_t saddr[4], u_int8_t daddr[4])
 {
     struct ether_arp arp;
@@ -345,20 +311,6 @@ int ArpSendRequest(int soc, struct in_addr *targetIp)
     return 0;
 }
 
-int ArpCheckGArp(int soc)
-{
-    uint8_t dmac[6];
-    char buf1[80], buf2[80];
-
-    if (GetTargetMac(soc, &Param.vip, dmac, 1)) // gratuitousフラグ=1
-    {
-        printf("ArpCheckGArp:%s use %s\n", inet_ntop(AF_INET, &Param.vip, buf1, sizeof(buf1)), my_ether_ntoa_r(dmac, buf2));
-        return 0;
-    }
-
-    return 1;
-}
-
 int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
 {
     struct ether_arp *arp;
@@ -401,4 +353,56 @@ int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
     }
 
     return 0;
+}
+
+// 受信リクエストを受けたときに、そのスレッドでこの関数を呼ぶとブロックしてしまってArpReplyを処理できないので永遠にARPが解決できない問題がある
+int GetTargetMac(int soc, struct in_addr *daddr, u_int8_t dmac[6], int gratuitous)
+{
+    int count;
+    struct in_addr addr;
+
+    if (isSameSubnet(daddr))
+    {
+        addr.s_addr = daddr->s_addr;
+    }
+    else
+    {
+        addr.s_addr = Param.gateway.s_addr;
+    }
+
+    count = 0;
+
+    while (!ArpSearchTable(&addr, dmac))
+    {
+        if (gratuitous)
+        {
+            // 自分自身に設定するIPアドレスが重複していないかどうかを検出するためのリクエスト
+            ArpSendRequestGratuitous(soc, &addr);
+        }
+        else
+        {
+            ArpSendRequest(soc, &addr);
+        }
+        DummyWait(DUMMY_WAIT_MS * (count + 1));
+        count++;
+        if (count > RETRY_COUNT)
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int ArpCheckGArp(int soc)
+{
+    uint8_t dmac[6];
+    char buf1[80], buf2[80];
+
+    if (GetTargetMac(soc, &Param.vip, dmac, 1)) // gratuitousフラグ=1
+    {
+        printf("ArpCheckGArp:%s use %s\n", inet_ntop(AF_INET, &Param.vip, buf1, sizeof(buf1)), my_ether_ntoa_r(dmac, buf2));
+        return 0;
+    }
+
+    return 1;
 }

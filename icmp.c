@@ -158,45 +158,6 @@ int PingSend(int soc, struct in_addr *daddr, int size)
     return 0;
 }
 
-int IcmpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, struct ip *ip, u_int8_t *data, int len)
-{
-    struct icmp *icmp;
-    u_int16_t sum;
-    int icmpSize;
-    uint8_t *ptr = data;
-
-    icmpSize = len;
-    icmp = (struct icmp *)ptr;
-    ptr += ECHO_HDR_SIZE;
-    len -= ECHO_HDR_SIZE;
-
-    sum = checksum((uint8_t *)icmp, icmpSize);
-    if (sum != 0 && sum != 0xFFFF)
-    {
-        printf("bad icmp checksum(%x, %x)\n", sum, icmp->icmp_cksum);
-        return -1;
-    }
-
-    if (isTargetIpAddr(&ip->ip_dst))
-    {
-        printf("--- recv ---[\n");
-        print_ether_header(eh);
-        print_ip(ip);
-        print_icmp(icmp);
-        printf("]\n");
-        if (icmp->icmp_type == ICMP_ECHO)
-        {
-            IcmpSendEchoReply(soc, ip, icmp, ptr, len, Param.IpTTL);
-        }
-        else if (icmp->icmp_type == ICMP_ECHOREPLY)
-        {
-            PingCheckReply(ip, icmp);
-        }
-    }
-
-    return 0;
-}
-
 int PingCheckReply(struct ip *ip, struct icmp *icmp)
 {
     char buf1[80];
@@ -223,6 +184,45 @@ int PingCheckReply(struct ip *ip, struct icmp *icmp)
                    ip->ip_ttl,
                    sec,
                    usec);
+        }
+    }
+
+    return 0;
+}
+
+int IcmpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, struct ip *ip, u_int8_t *data, int len)
+{
+    struct icmp *icmp;
+    u_int16_t sum;
+    int icmpSize;
+    uint8_t *ptr = data;
+
+    icmpSize = len;
+    icmp = (struct icmp *)ptr;
+    ptr += ECHO_HDR_SIZE;
+    len -= ECHO_HDR_SIZE;
+
+    sum = checksum((uint8_t *)icmp, icmpSize);
+    if (sum != 0 && sum != 0xFFFF)
+    {
+        printf("bad icmp checksum(%x, %x)\n", sum, icmp->icmp_cksum);
+        return -1;
+    }
+
+    if (isTargetIPAddr(&ip->ip_dst))
+    {
+        printf("--- recv ---[\n");
+        print_ether_header(eh);
+        print_ip(ip);
+        print_icmp(icmp);
+        printf("]\n");
+        if (icmp->icmp_type == ICMP_ECHO)
+        {
+            IcmpSendEchoReply(soc, ip, icmp, ptr, len, Param.IpTTL);
+        }
+        else if (icmp->icmp_type == ICMP_ECHOREPLY)
+        {
+            PingCheckReply(ip, icmp);
         }
     }
 
