@@ -113,8 +113,8 @@ void print_ether_arp(struct ether_arp *ether_arp)
         printf("(unknown)\n");
         break;
     }
-    printf("arp_hln=%u", ether_arp->arp_hln);      // arp_hln = arp hardware address length
-    printf("arp_pln=%u", ether_arp->arp_pln);      // arp_pln = arp protocol address length
+    printf("arp_hln=%u,", ether_arp->arp_hln);      // arp_hln = arp hardware address length
+    printf("arp_pln=%u,", ether_arp->arp_pln);      // arp_pln = arp protocol address length
     printf("arp_op=%u", ntohs(ether_arp->arp_op)); // arp_op = ARP opcode (command)
     if (ntohs(ether_arp->arp_op) <= 10)
     {
@@ -273,7 +273,7 @@ int ArpSend(int soc, u_int16_t op, u_int8_t e_smac[6], u_int8_t e_dmac[6], u_int
     memcpy(arp.arp_spa, saddr, 4);
     memcpy(arp.arp_tpa, daddr, 4);
 
-    printf("=== ARP ===[\n]");
+    printf("=== ARP ===[\n");
     EtherSend(soc, e_smac, e_dmac, ETHERTYPE_ARP, (uint8_t *)&arp, sizeof(struct ether_arp));
     print_ether_arp(&arp);
     printf("]\n");

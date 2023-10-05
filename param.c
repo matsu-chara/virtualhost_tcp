@@ -60,7 +60,7 @@ int ReadParam(char *fname)
                     Param.IpTTL = atoi(ptr);
                 }
             }
-            else if (strcmp(ptr, "MTU") == 0)
+            else if (strcmp(ptr, "IpTTL") == 0)
             {
                 if ((ptr = strtok_r(NULL, "\r\n", &saveptr)) != NULL)
                 {

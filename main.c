@@ -185,7 +185,7 @@ int show_ifreq(char *name)
     }
     else
     {
-        printf("mtu-%d\n", ifreq.ifr_mtu);
+        printf("mtu=%d\n", ifreq.ifr_mtu);
     }
 
     if (ioctl(soc, SIOCGIFADDR, &ifreq) == -1)

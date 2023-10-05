@@ -72,7 +72,7 @@ int print_icmp(struct icmp *icmp)
     // echo reply か echo requestの場合はid, seqをprint
     if (icmp->icmp_type == ICMP_ECHOREPLY || icmp->icmp_type == ICMP_ECHO)
     {
-        printf("icmp_id=%u", ntohs(icmp->icmp_id));
+        printf("icmp_id=%u,", ntohs(icmp->icmp_id));
         printf("icmp_seq=%u\n", ntohs(icmp->icmp_seq));
     }
     printf("icmp------------------------------------\n");
