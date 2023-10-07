@@ -137,7 +137,7 @@ int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
 
     icmp->icmp_cksum = checksum((uint8_t *)sbuf, ptr - sbuf);
 
-    printf("=== ICMP echo ===[\n]");
+    printf("=== ICMP echo ===[\n");
     IpSend(soc, &Param.vip, daddr, IPPROTO_ICMP, 0, Param.IpTTL, sbuf, ptr - sbuf);
     print_icmp(icmp);
     printf("]\n");

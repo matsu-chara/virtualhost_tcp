@@ -58,11 +58,11 @@ void print_ip(struct ip *ip)
     char buf1[80];
 
     printf("ip------------------------------------------------------------------------------\n");
-    printf("ip_v=%u", ip->ip_v);              // version
-    printf("ip_hl=%u", ip->ip_hl);            // header length
-    printf("ip_tos=%x", ip->ip_tos);          // type of service
+    printf("ip_v=%u,", ip->ip_v);              // version
+    printf("ip_hl=%u,", ip->ip_hl);            // header length
+    printf("ip_tos=%x,", ip->ip_tos);          // type of service
     printf("ip_len=%d\n", ntohs(ip->ip_len)); // total length
-    printf("ip_id=%u", ntohs(ip->ip_id));     // id
+    printf("ip_id=%u,", ntohs(ip->ip_id));     // id
 
     // fragment offset field
     // フラグオフセットフィールドは13bit。 値が1なら8byte目, 2なら16byte目のデータが入っている。
@@ -71,8 +71,8 @@ void print_ip(struct ip *ip)
     // ip_offの先頭3bitを表示しているがこれはflagフィールド。(データが分割されているかどうか)
     printf("ip_off=%x,%d\n", (ntohs(ip->ip_off)) >> 13 & 0x07, ntohs(ip->ip_off) & IP_OFFMASK);
 
-    printf("ip_ttl=%u", ip->ip_ttl); // ttl
-    printf("ip_p=%u", ip->ip_p);     // protocol
+    printf("ip_ttl=%u,", ip->ip_ttl); // ttl
+    printf("ip_p=%u,", ip->ip_p);     // protocol
     if (ip->ip_p <= 17)
     {
         printf("(%s)", proto[ip->ip_p]);
