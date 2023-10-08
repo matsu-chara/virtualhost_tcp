@@ -1,5 +1,6 @@
-.vagrant
-.vscode
-.vscode/!c_cpp_properties.json
+.vagrant/*
+.vscode/*
+!.vscode/c_cpp_properties.json
+!.vscode/launch.json
 *.o
 MyEth
