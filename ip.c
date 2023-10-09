@@ -58,11 +58,11 @@ void print_ip(struct ip *ip)
     char buf1[80];
 
     printf("ip------------------------------------------------------------------------------\n");
-    printf("ip_v=%u,", ip->ip_v);              // version
-    printf("ip_hl=%u,", ip->ip_hl);            // header length
-    printf("ip_tos=%x,", ip->ip_tos);          // type of service
+    printf("ip_v=%u,", ip->ip_v);             // version
+    printf("ip_hl=%u,", ip->ip_hl);           // header length
+    printf("ip_tos=%x,", ip->ip_tos);         // type of service
     printf("ip_len=%d\n", ntohs(ip->ip_len)); // total length
-    printf("ip_id=%u,", ntohs(ip->ip_id));     // id
+    printf("ip_id=%u,", ntohs(ip->ip_id));    // id
 
     // fragment offset field
     // フラグオフセットフィールドは13bit。 値が1なら8byte目, 2なら16byte目のデータが入っている。
@@ -92,7 +92,7 @@ int IpRecvBufInit()
 {
     for (int i = 0; i < IP_RECV_BUF_NO; i++)
     {
-        IpRecvBuf[i].id = 1;
+        IpRecvBuf[i].id = -1;
     }
     return 0;
 }
