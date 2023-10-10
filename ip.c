@@ -9,6 +9,7 @@
 #include <netpacket/packet.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
+#include <netinet/udp.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <pthread.h>
@@ -18,6 +19,7 @@
 #include "ether.h"
 #include "arp.h"
 #include "icmp.h"
+#include "udp.h"
 
 extern PARAM Param;
 
@@ -226,6 +228,10 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
         if (ip->ip_p == IPPROTO_ICMP)
         {
             IcmpRecv(soc, raw, raw_len, eh, ip, IpRecvBuf[no].data, IpRecvBuf[no].len);
+        }
+        else if (ip->ip_p == IPPROTO_UDP)
+        {
+            UdpRecv(soc, eh, ip, IpRecvBuf[no].data, IpRecvBuf[no].len);
         }
         IpRecvBufDel(ntohs(ip->ip_id));
     }

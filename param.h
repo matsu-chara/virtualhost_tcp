@@ -16,6 +16,10 @@ typedef struct
     int IpTTL;
     int MTU;
     struct in_addr gateway;
+    uint32_t DhcpRequestLeaseTime;
+    uint32_t DhcpLeaseTime;
+    time_t DhcpStartTime;
+    struct in_addr DhcpServer;
 } PARAM;
 
 int SetDefaultParam();

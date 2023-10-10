@@ -114,6 +114,13 @@ int ReadParam(char *fname)
                     Param.vmask.s_addr = inet_addr(ptr);
                 }
             }
+            else if (strcmp(ptr, "DhcpRequestLeaseTime") == 0)
+            {
+                if ((ptr = strtok_r(NULL, " \r\n", &saveptr)) != NULL)
+                {
+                    Param.DhcpRequestLeaseTime = atoi(ptr);
+                }
+            }
         }
     }
 
