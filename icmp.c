@@ -147,6 +147,45 @@ int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
     return 0;
 }
 
+int IcmpSendDestinationUnreachable(int soc, struct in_addr *daddr, struct ip *ip, u_int8_t *data, int len)
+{
+    uint8_t *ptr;
+    uint8_t sbuf[64 * 1024];
+    struct icmp *icmp;
+
+    ptr = sbuf;
+    icmp = (struct icmp *)ptr;
+    memset(icmp, 0, sizeof(struct icmp));
+    icmp->icmp_type = ICMP_DEST_UNREACH;
+    icmp->icmp_code = ICMP_PORT_UNREACH;
+    icmp->icmp_cksum = 0;
+
+    ptr += ECHO_HDR_SIZE;
+
+    memcpy(ptr, ip, sizeof(struct ip));
+    ptr += sizeof(struct ip);
+
+    if (len >= 64)
+    {
+        memcpy(ptr, data, 64);
+        ptr += 64;
+    }
+    else
+    {
+        mempcpy(ptr, data, len);
+        ptr += len;
+    }
+
+    icmp->icmp_cksum = checksum((uint8_t *)sbuf, ptr - sbuf);
+
+    printf("=== ICMP Destination Unreachable ==[\n");
+    IpSend(soc, &Param.vip, daddr, IPPROTO_ICMP, 0, Param.IpTTL, sbuf, ptr - sbuf);
+    print_icmp(icmp);
+    printf("]\n");
+
+    return 0;
+}
+
 int PingSend(int soc, struct in_addr *daddr, int size)
 {
     for (int i = 0; i < PING_SEND_NO; i++)
