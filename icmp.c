@@ -172,7 +172,7 @@ int IcmpSendDestinationUnreachable(int soc, struct in_addr *daddr, struct ip *ip
     }
     else
     {
-        mempcpy(ptr, data, len);
+        memcpy(ptr, data, len);
         ptr += len;
     }
 

@@ -27,6 +27,55 @@
 extern int DeviceSoc;
 extern PARAM Param;
 
+int MakeString(char *data)
+{
+    char *tmp = strdup(data);
+    char *wp, *rp;
+
+    for (wp = tmp, rp = data; *rp != '\0'; rp++)
+    {
+        if (*rp == '\\' && *(rp + 1) != '\0')
+        {
+            rp++;
+            switch (*rp)
+            {
+            case 'n':
+                *wp = '\n';
+                wp++;
+                break;
+            case 'r':
+                *wp = '\r';
+                wp++;
+                break;
+            case 't':
+                *wp = '\t';
+                wp++;
+                break;
+            case '\\':
+                *wp = '\\';
+                wp++;
+                break;
+            default:
+                *wp = '\\';
+                wp++;
+                *wp = *rp;
+                wp++;
+                break;
+            }
+        }
+        else
+        {
+            *wp = *rp;
+            wp++;
+        }
+    }
+    *wp = '\0';
+    strcpy(data, tmp);
+    free(tmp);
+
+    return 0;
+}
+
 int DoCmdArp(char **cmdline)
 {
     char *ptr;
@@ -139,7 +188,7 @@ int DoCmdUdp(char **cmdline)
 
     if (strcmp(ptr, "open") == 0)
     {
-        if (ptr = strtok_r(NULL, " \r\n", cmdline) == NULL)
+        if ((ptr = strtok_r(NULL, " \r\n", cmdline)) == NULL)
         {
             no = UdpSocket(0);
         }
@@ -161,7 +210,7 @@ int DoCmdUdp(char **cmdline)
         ret = UdpSocketClose(port);
         printf("DoCmdUdp:ret=%d\n", ret);
     }
-    else if (strcmp(pr, "send") == 0)
+    else if (strcmp(ptr, "send") == 0)
     {
         char *p_addr, *p_port;
         struct in_addr daddr;
@@ -170,7 +219,7 @@ int DoCmdUdp(char **cmdline)
         if ((ptr = strtok_r(NULL, " \r\n", cmdline)) == NULL)
         {
             printf("DoCmdUdp:send:no arg\n");
-            return -1
+            return -1;
         }
         sport = atoi(ptr);
         if ((p_addr = strtok_r(NULL, ":\r\n", cmdline)) == NULL)
@@ -255,53 +304,4 @@ int DoCmd(char *cmd)
         printf("DoCmd:unknown cmd : %s\n", ptr);
         return (-1);
     }
-}
-
-int MakeString(char *data)
-{
-    char *tmp = strdup(data);
-    char *wp, *rp;
-
-    for (wp = tmp, rp = data; *rp != '\0'; rp++)
-    {
-        if (*rp == '\\' * **(rp + 1) != '\0')
-        {
-            rp++;
-            switch (*rp)
-            {
-            case 'n':
-                *wp = '\n';
-                wp++;
-                break;
-            case 'r':
-                *wp = '\r';
-                wp++;
-                break;
-            case 't':
-                *wp = '\t';
-                wp++;
-                break;
-            case '\\':
-                *wp = '\\';
-                wp++;
-                break;
-            default:
-                *wp = '\\';
-                wp++;
-                *wp = *rp;
-                wp++;
-                break;
-            }
-        }
-        else
-        {
-            *wp = *rp;
-            wp++;
-        }
-    }
-    *wp = '\0';
-    strcpy(data, tmp);
-    free(tmp);
-
-    return 0;
 }
