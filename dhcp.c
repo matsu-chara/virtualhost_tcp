@@ -920,12 +920,153 @@ int print_dhcp(struct dhcp_packet *pa, int size)
     return 0;
 }
 
-u_int8_t *dhcp_set_option(u_int8_t *ptr, int tag, int size, u_int8_t *buf);
-int dhcp_get_option(struct dhcp_packet *pa, int size, int opno, void *val);
-int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciaddr, struct in_addr *req_ip, struct in_addr *server);
-int DhcpSendDiscover(int soc);
-int DhcpSendRequest(int soc, struct in_addr *yiaddr, struct in_addr *server);
-int DhcpSendRequestUni(int soc);
-int DhcpSendRelease(int soc);
-int DhcpRecv(int soc, u_int8_t *data, int len, struct ether_header *eh, struct ip *ip, struct udphdr *udp);
-int DhcpCheck(int soc);
+u_int8_t *dhcp_set_option(u_int8_t *ptr, int tag, int size, u_int8_t *buf)
+{
+    *ptr = (uint8_t)tag;
+    ptr++;
+    if (size > 255)
+    {
+        size = 255;
+    }
+    *ptr = (uint8_t)size;
+    ptr++;
+    memcpy(ptr, buf, size);
+    ptr += size;
+
+    return ptr;
+}
+
+int dhcp_get_option(struct dhcp_packet *pa, int size, int opno, void *val)
+{
+    uint8_t cookie[4];
+    uint8_t *ptr;
+    int end, n;
+
+    ptr = pa->options;
+    memcpy(cookie, ptr, 4);
+    ptr += 4;
+    if (memcmp(cookie, DHCP_OPTIONS_COOKIE, 4) != 0)
+    {
+        // マジッククッキーは固定値なので違ったらエラー。（これ以降がbootpと異なる部分）
+        printf("analize_packet:options:cookie:error\n");
+        return -1;
+    }
+    end = 0;
+    while (ptr < (uint8_t *)pa + size)
+    {
+        if (*ptr == 0)
+        {
+            ptr++;
+        }
+        else if (*ptr == 255)
+        {
+            end = 1;
+        }
+        else if (*ptr == opno)
+        {
+            ptr++;
+            n = *ptr;
+            ptr++;
+            memcpy(val, ptr, n);
+            ptr += n;
+            end = 1;
+        }
+        else
+        {
+            ptr++;
+            n = *ptr;
+            ptr++;
+            ptr += n;
+        }
+        if (end)
+        {
+            break;
+        }
+    }
+    return 0;
+}
+
+int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciaddr, struct in_addr *req_ip, struct in_addr *server)
+{
+    uint8_t *ptr;
+    uint8_t buf[512];
+    int size;
+    uint32_t l;
+
+    memset(pa, 0, sizeof(struct dhcp_packet));
+    pa->op = BOOTREQUEST;
+    pa->htype = HTYPE_ETHER;
+    pa->hlen = 6;
+    pa->hops = 0;                       // clientは0を指定する (relayする機器が増やしていく)
+    pa->xid = htons(getpid() & 0xFFFF); // transactionId
+    pa->secs = 0;                       // リース延長のときに残り時間を入れる
+    pa->flags = htons(0x8000);          // 16bit中上位1bit以外は0にする必要がある。上位1bitを1にするとブロードキャストになる。（IPがまだなくてユニキャストを受け取れないときに利用できる。）
+
+    if (ciaddr == NULL)
+    {
+        pa->ciaddr.s_addr = 0; // client_addressは再リースのときなどに存在する可能性がある。
+    }
+    else
+    {
+        pa->ciaddr.s_addr = ciaddr->s_addr;
+    }
+    pa->yiaddr.s_addr = 0;             // サーバーから払い出されたIPアドレスが入る。(OFFERやACKのときに入る)
+    pa->siaddr.s_addr = 0;             // あまり使われない
+    pa->giaddr.s_addr = 0;             // DHCP リレー時の中継機器(gateway)のIPアドレス（これにより払い出されるIPアドレスが変わったりする）
+    memcpy(pa->chaddr, Param.vmac, 6); // client hardware address
+
+    strcpy(pa->sname, "");
+    strcpy(pa->file, "");
+
+    ptr = pa->options;
+    memcpy(ptr, DHCP_OPTIONS_COOKIE, 4);
+    ptr += 4;
+
+    buf[0] = mtype;
+    ptr = dhcp_set_option(ptr, 53, 1, buf); // Option 53 = Message Type
+
+    l = htonl(Param.DhcpRequestLeaseTime);
+    ptr = dhcp_set_option(ptr, 51, 4, (u_int8_t *)&l); // Option 51 = Address Time
+
+    if (req_ip != NULL)
+    {
+        ptr = dhcp_set_option(ptr, 50, 4, (uint8_t *)&req_ip->s_addr); // Address Request
+    }
+    if (server != NULL)
+    {
+        ptr = dhcp_set_option(ptr, 54, 4, (uint8_t *)&server->s_addr); // DHCP Server Id
+    }
+
+    buf[0] = 1;                             // option 1 Subnet Mask
+    buf[1] = 3;                             // option 3 Router	(デフォルトゲートウェイアドレス)
+    ptr = dhcp_set_option(ptr, 55, 2, buf); // Parameter Request List
+
+    ptr = dhcp_set_option(ptr, 255, 0, NULL); // END (オプションの終了位置)
+
+    size = ptr - (uint8_t *)pa;
+    return size;
+}
+
+int DhcpSendDiscover(int soc)
+{
+}
+
+int DhcpSendRequest(int soc, struct in_addr *yiaddr, struct in_addr *server)
+{
+}
+
+int DhcpSendRequestUni(int soc)
+{
+}
+
+int DhcpSendRelease(int soc)
+{
+}
+
+int DhcpRecv(int soc, u_int8_t *data, int len, struct ether_header *eh, struct ip *ip, struct udphdr *udp)
+{
+}
+
+int DhcpCheck(int soc)
+{
+}
