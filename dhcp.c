@@ -1010,7 +1010,7 @@ int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciad
     {
         pa->ciaddr.s_addr = ciaddr->s_addr;
     }
-    pa->yiaddr.s_addr = 0;             // サーバーから払い出されたIPアドレスが入る。(OFFERやACKのときに入る)
+    pa->yiaddr.s_addr = 0;             // サーバーから払い出されたIPアドレスが入る。
     pa->siaddr.s_addr = 0;             // あまり使われない
     pa->giaddr.s_addr = 0;             // DHCP リレー時の中継機器(gateway)のIPアドレス（これにより払い出されるIPアドレスが変わったりする）
     memcpy(pa->chaddr, Param.vmac, 6); // client hardware address
@@ -1049,24 +1049,171 @@ int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciad
 
 int DhcpSendDiscover(int soc)
 {
+    int size;
+    struct dhcp_packet pa;
+    struct in_addr saddr, daddr;
+
+    saddr.s_addr = 0;
+    inet_aton("255.255.255.255", &daddr);
+    size = MakeDhcpRequest(&pa, DHCPDISCOVER, NULL, NULL, NULL);
+
+    printf("--- DHCP ---{\n");
+
+    // 1はdontFragment
+    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    print_dhcp(&pa, size);
+    printf("}\n");
+
+    return 0;
 }
 
 int DhcpSendRequest(int soc, struct in_addr *yiaddr, struct in_addr *server)
 {
+    int size;
+    struct dhcp_packet pa;
+    struct in_addr saddr, daddr;
+
+    saddr.s_addr = 0;
+    inet_aton("255.255.255.255", &daddr);
+
+    size = MakeDhcpRequest(&pa, DHCPREQUEST, NULL, yiaddr, server);
+
+    printf("--- DHCP ---{\n");
+
+    // 1はdontFragment
+    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    print_dhcp(&pa, size);
+    printf("}\n");
+
+    return 0;
 }
 
 int DhcpSendRequestUni(int soc)
 {
+    int size;
+    struct dhcp_packet pa;
+
+    size = MakeDhcpRequest(&pa, DHCPREQUEST, &Param.vip, &Param.vip, &Param.DhcpServer);
+
+    printf("--- DHCP ---{\n");
+
+    // 1はdontFragment
+    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    print_dhcp(&pa, size);
+    printf("}\n");
+
+    return 0;
 }
 
 int DhcpSendRelease(int soc)
 {
+    int size;
+    struct dhcp_packet pa;
+
+    size = MakeDhcpRequest(&pa, DHCPRELEASE, &Param.vip, NULL, &Param.DhcpServer);
+
+    printf("--- DHCP ---{\n");
+
+    // 1はdontFragment
+    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    print_dhcp(&pa, size);
+    printf("}\n");
+
+    return 0;
 }
 
 int DhcpRecv(int soc, u_int8_t *data, int len, struct ether_header *eh, struct ip *ip, struct udphdr *udp)
 {
+    char buf1[80];
+    struct dhcp_packet *ppa;
+    struct in_addr server;
+
+    ppa = (struct dhcp_packet *)data;
+    if (memcmp(ppa->chaddr, Param.vmac, 6) != 0)
+    {
+        return -1;
+    }
+    if (ntohs(ppa->xid) != (getpid() & 0xFFFF))
+    {
+        printf("DhcpRecv:xid not match(%x:%x)\n", ntohs(ppa->xid), getpid() & 0xFFFF);
+        return -1;
+    }
+
+    printf("--- recv ---[\n");
+    print_ether_header(eh);
+    print_ip(ip);
+    print_udp(udp);
+    print_dhcp(ppa, len);
+    printf(")\n");
+
+    if (ppa->op == BOOTREPLY)
+    {
+        u_int8_t type;
+        dhcp_get_option(ppa, len, 53, &type);
+        if (type = DHCPOFFER)
+        {
+            dhcp_get_option(ppa, len, 54, &server.s_addr);
+            DhcpSendRequest(soc, &ppa->yiaddr, &server);
+        }
+        else if (type == DHCPACK)
+        {
+            Param.vip.s_addr = ppa->yiaddr.s_addr;
+            dhcp_get_option(ppa, len, 54, &Param.DhcpServer.s_addr);
+            dhcp_get_option(ppa, len, 1, &Param.vmask);
+            dhcp_get_option(ppa, len, 3, &Param.gateway);
+            dhcp_get_option(ppa, len, 51, &Param.DhcpLeaseTime);
+            Param.DhcpLeaseTime = ntohl(Param.DhcpLeaseTime);
+            Param.DhcpStartTime = time(NULL);
+            printf("vip=%s\n", inet_ntop(AF_INET, &Param.vip, buf1, sizeof(buf1)));
+            printf("vmask=%s\n", inet_ntop(AF_INET, &Param.vmask, buf1, sizeof(buf1)));
+            printf("gateway=%s\n", inet_ntop(AF_INET, &Param.gateway, buf1, sizeof(buf1)));
+            printf("DHCP server=%s\n", inet_ntop(AF_INET, &Param.DhcpServer, buf1, sizeof(buf1)));
+            printf("DHCP start time=%s", ctime_r(&Param.DhcpStartTime, buf1));
+            printf("DHCP lease time=%d\n", Param.DhcpLeaseTime);
+        }
+        else if (type == DHCPNAK)
+        {
+            Param.vip.s_addr = 0;
+            Param.vmask.s_addr = 0;
+            Param.gateway.s_addr = 0;
+            Param.DhcpServer.s_addr = 0;
+            Param.DhcpStartTime = 0;
+            Param.DhcpLeaseTime = 0;
+            DhcpSendDiscover(soc);
+        }
+    }
+
+    return 0;
 }
 
 int DhcpCheck(int soc)
 {
+    if (time(NULL) - Param.DhcpStartTime >= Param.DhcpLeaseTime / 2)
+    {
+        Param.DhcpStartTime += Param.DhcpLeaseTime / 2;
+        Param.DhcpLeaseTime /= 2;
+        if (DhcpSendRequestUni(soc) == -1)
+        {
+            printf("DhcpCheck:DhcpSendRequestUni:error\n");
+            Param.vip.s_addr = 0;
+            Param.vmask.s_addr = 0;
+            Param.gateway.s_addr = 0;
+            Param.DhcpServer.s_addr = 0;
+            Param.DhcpStartTime = 0;
+            Param.DhcpLeaseTime = 0;
+            DhcpSendDiscover(soc);
+        }
+    }
+    if (time(NULL) - Param.DhcpStartTime >= Param.DhcpLeaseTime)
+    {
+        printf("DhcpCheck:lease timeout\n");
+        Param.vip.s_addr = 0;
+        Param.vmask.s_addr = 0;
+        Param.gateway.s_addr = 0;
+        Param.DhcpServer.s_addr = 0;
+        Param.DhcpStartTime = 0;
+        Param.DhcpLeaseTime = 0;
+        DhcpSendDiscover(soc);
+    }
+    return 0;
 }

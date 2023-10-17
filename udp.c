@@ -19,6 +19,7 @@
 #include "param.h"
 #include "ether.h"
 #include "icmp.h"
+#include "ip.h"
 #include "dhcp.h"
 
 extern PARAM Param;
