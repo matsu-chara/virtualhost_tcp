@@ -66,7 +66,7 @@ u_int16_t UdpChecksum(struct in_addr *saddr, struct in_addr *daddr, u_int8_t pro
     p_ip.ip_len = htons(len);
 
     sum = checksum2((uint8_t *)&p_ip, sizeof(struct pseudo_ip), data, len);
-    if (sum = 0x0000)
+    if (sum == 0x0000)
     {
         sum = 0xFFFF;
     }
@@ -222,7 +222,7 @@ int UdpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *sad
     IpSendLink(soc, smac, dmac, saddr, daddr, IPPROTO_UDP, dontFlagment, Param.IpTTL, sbuf, ptr - sbuf);
     print_udp(udp);
     print_hex(data, len);
-    print("]\n");
+    printf("]\n");
 
     return 0;
 }
@@ -249,7 +249,7 @@ int UdpSend(int soc, struct in_addr *saddr, struct in_addr *daddr, u_int16_t spo
     IpSend(soc, saddr, daddr, IPPROTO_UDP, dontFlagment, Param.IpTTL, sbuf, ptr - sbuf);
     print_udp(udp);
     print_hex(data, len);
-    print("]\n");
+    printf("]\n");
 
     return 0;
 }
@@ -287,7 +287,7 @@ int UdpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
             print_ip(ip);
             print_udp(udp);
             print_hex(ptr, udplen);
-            print("]\n");
+            printf("]\n");
         }
         else
         {

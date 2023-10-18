@@ -18,6 +18,7 @@
 #include "arp.h"
 #include "sock.h"
 #include "ip.h"
+#include "dhcp.h"
 
 int EndFlag = 0;
 int DeviceSoc; // 送受信するPF_PACKETのディスクリプタを格納(PF = protocol family.)
@@ -300,7 +301,7 @@ int main(int argc, char *argv[])
                 printf("DHCP fail\n");
                 return -1;
             }
-            DhcpSendingDiscover(DeviceSoc);
+            DhcpSendDiscover(DeviceSoc);
             sleep(1);
         } while (Param.vip.s_addr == 0);
     }

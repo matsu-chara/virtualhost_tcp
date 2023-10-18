@@ -1,3 +1,5 @@
+#include <netinet/udp.h>
+
 #define DHCP_SERVER_PORT (67)
 #define DHCP_CLIENT_PORT (68)
 

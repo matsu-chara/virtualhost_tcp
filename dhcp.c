@@ -1150,7 +1150,7 @@ int DhcpRecv(int soc, u_int8_t *data, int len, struct ether_header *eh, struct i
     {
         u_int8_t type;
         dhcp_get_option(ppa, len, 53, &type);
-        if (type = DHCPOFFER)
+        if (type == DHCPOFFER)
         {
             dhcp_get_option(ppa, len, 54, &server.s_addr);
             DhcpSendRequest(soc, &ppa->yiaddr, &server);
