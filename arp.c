@@ -291,7 +291,9 @@ int ArpSendRequestGratuitous(int soc, struct in_addr *targetIp)
 
     saddr.l = 0; // ソースIPアドレスは０にして受信した相手のARPテーブルに影響を与えないようにする。
     daddr.l = targetIp->s_addr;
+    printf("Gratuitous Arp Request[\n");
     ArpSend(soc, ARPOP_REQUEST, Param.vmac, BcastMac, Param.vmac, AllZeroMac, saddr.c, daddr.c);
+    printf("]\n");
 
     return 0;
 }
@@ -330,7 +332,7 @@ int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
             printf("--- recv ---[\n");
             print_ether_header(eh);
             print_ether_arp(arp);
-            printf(")\n");
+            printf("]\n");
 
             addr.s_addr=(arp->arp_spa[3]<<24)|(arp->arp_spa[2]<<16)|(arp->arp_spa[1]<<8)|(arp->arp_spa[0]);
             ArpAddTable(arp->arp_sha,&addr);

@@ -156,7 +156,7 @@ int DoCmdIfconfig(char **cmdline)
     {
         printf("DHCP request lease time=%d\n", Param.DhcpRequestLeaseTime);
         printf("DHCP server=%s\n", inet_ntop(AF_INET, &Param.DhcpServer, buf1, sizeof(buf1)));
-        printf("DHCP start time:%s,", ctime(&Param.DhcpStartTime));
+        printf("DHCP start time:%s\n", ctime(&Param.DhcpStartTime));
         printf("DHCP lease time:%d\n", Param.DhcpLeaseTime);
     }
     printf("IpTTL=%d, MTU=%d\n", Param.IpTTL, Param.MTU);

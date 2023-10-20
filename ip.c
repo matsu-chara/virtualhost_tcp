@@ -74,10 +74,10 @@ void print_ip(struct ip *ip)
     printf("ip_off=%x,%d\n", (ntohs(ip->ip_off)) >> 13 & 0x07, ntohs(ip->ip_off) & IP_OFFMASK);
 
     printf("ip_ttl=%u,", ip->ip_ttl); // ttl
-    printf("ip_p=%u,", ip->ip_p);     // protocol
+    printf("ip_p=%u", ip->ip_p);     // protocol
     if (ip->ip_p <= 17)
     {
-        printf("(%s)", proto[ip->ip_p]);
+        printf("(%s),", proto[ip->ip_p]);
     }
     else
     {

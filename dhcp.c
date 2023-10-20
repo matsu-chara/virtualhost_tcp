@@ -1168,7 +1168,7 @@ int DhcpRecv(int soc, u_int8_t *data, int len, struct ether_header *eh, struct i
             printf("vmask=%s\n", inet_ntop(AF_INET, &Param.vmask, buf1, sizeof(buf1)));
             printf("gateway=%s\n", inet_ntop(AF_INET, &Param.gateway, buf1, sizeof(buf1)));
             printf("DHCP server=%s\n", inet_ntop(AF_INET, &Param.DhcpServer, buf1, sizeof(buf1)));
-            printf("DHCP start time=%s", ctime_r(&Param.DhcpStartTime, buf1));
+            printf("DHCP start time=%s\n", ctime_r(&Param.DhcpStartTime, buf1));
             printf("DHCP lease time=%d\n", Param.DhcpLeaseTime);
         }
         else if (type == DHCPNAK)
