@@ -177,7 +177,7 @@ int DoCmdNetstat(char **cmdline)
 int DoCmdUdp(char **cmdline)
 {
     char *ptr;
-    uint16_t port;
+    u_int16_t port;
     int no, ret;
 
     if ((ptr = strtok_r(NULL, "\r\n", cmdline)) == NULL)
@@ -214,7 +214,7 @@ int DoCmdUdp(char **cmdline)
     {
         char *p_addr, *p_port;
         struct in_addr daddr;
-        uint16_t sport, dport;
+        u_int16_t sport, dport;
 
         if ((ptr = strtok_r(NULL, " \r\n", cmdline)) == NULL)
         {
@@ -240,11 +240,11 @@ int DoCmdUdp(char **cmdline)
             return -1;
         }
         MakeString(ptr);
-        UdpSend(DeviceSoc, &Param.vip, &daddr, sport, dport, 0, (uint8_t *)ptr, strlen(ptr));
+        UdpSend(DeviceSoc, &Param.vip, &daddr, sport, dport, 0, (u_int8_t *)ptr, strlen(ptr));
     }
     else
     {
-        printf("DoCmdUdp;[%s] unknown\n", ptr);
+        printf("DoCmdUdp:[%s] unknown\n", ptr);
         return -1;
     }
 

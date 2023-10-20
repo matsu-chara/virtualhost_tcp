@@ -144,7 +144,7 @@ int GetMacAddress(char *device, u_int8_t *hwaddr)
     }
     else
     {
-        p = (uint8_t *)&ifreq.ifr_hwaddr.sa_data;
+        p = (u_int8_t *)&ifreq.ifr_hwaddr.sa_data;
         memcpy(hwaddr, p, 6);
         close(soc);
         return 1;

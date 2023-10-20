@@ -113,8 +113,8 @@ void print_ether_arp(struct ether_arp *ether_arp)
         printf("(unknown)\n");
         break;
     }
-    printf("arp_hln=%u,", ether_arp->arp_hln);      // arp_hln = arp hardware address length
-    printf("arp_pln=%u,", ether_arp->arp_pln);      // arp_pln = arp protocol address length
+    printf("arp_hln=%u,", ether_arp->arp_hln);     // arp_hln = arp hardware address length
+    printf("arp_pln=%u,", ether_arp->arp_pln);     // arp_pln = arp protocol address length
     printf("arp_op=%u", ntohs(ether_arp->arp_op)); // arp_op = ARP opcode (command)
     if (ntohs(ether_arp->arp_op) <= 10)
     {
@@ -160,9 +160,9 @@ int ArpAddTable(u_int8_t mac[6], struct in_addr *ipaddr)
                     char buf1[80], buf2[80], buf3[80];
                     // inet_ntop: convert internet address to text format
                     printf("ArpAddTable:%s:receive different mac:(%s):(%s)\n",
-                    inet_ntop(AF_INET, ipaddr, buf1, sizeof(buf1)),
-                    my_ether_ntoa_r(ArpTable[i].mac, buf2),
-                    my_ether_ntoa_r(mac, buf3));
+                           inet_ntop(AF_INET, ipaddr, buf1, sizeof(buf1)),
+                           my_ether_ntoa_r(ArpTable[i].mac, buf2),
+                           my_ether_ntoa_r(mac, buf3));
                 }
                 memcpy(ArpTable[i].mac, mac, 6);
                 ArpTable[i].timestamp = time(NULL);
@@ -274,7 +274,7 @@ int ArpSend(int soc, u_int16_t op, u_int8_t e_smac[6], u_int8_t e_dmac[6], u_int
     memcpy(arp.arp_tpa, daddr, 4);
 
     printf("=== ARP ===[\n");
-    EtherSend(soc, e_smac, e_dmac, ETHERTYPE_ARP, (uint8_t *)&arp, sizeof(struct ether_arp));
+    EtherSend(soc, e_smac, e_dmac, ETHERTYPE_ARP, (u_int8_t *)&arp, sizeof(struct ether_arp));
     print_ether_arp(&arp);
     printf("]\n");
 
@@ -286,7 +286,7 @@ int ArpSendRequestGratuitous(int soc, struct in_addr *targetIp)
     union
     {
         u_int32_t l;
-        uint8_t c[4];
+        u_int8_t c[4];
     } saddr, daddr;
 
     saddr.l = 0; // ソースIPアドレスは０にして受信した相手のARPテーブルに影響を与えないようにする。
@@ -302,8 +302,8 @@ int ArpSendRequest(int soc, struct in_addr *targetIp)
 {
     union
     {
-        uint32_t l;
-        uint8_t c[4];
+        u_int32_t l;
+        u_int8_t c[4];
     } saddr, daddr;
 
     saddr.l = Param.vip.s_addr;
@@ -316,7 +316,7 @@ int ArpSendRequest(int soc, struct in_addr *targetIp)
 int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
 {
     struct ether_arp *arp;
-    uint8_t *ptr = data;
+    u_int8_t *ptr = data;
 
     // ARPヘッダがarpに入る
     arp = (struct ether_arp *)ptr;
@@ -334,8 +334,8 @@ int ArpRecv(int soc, struct ether_header *eh, u_int8_t *data, int len)
             print_ether_arp(arp);
             printf("]\n");
 
-            addr.s_addr=(arp->arp_spa[3]<<24)|(arp->arp_spa[2]<<16)|(arp->arp_spa[1]<<8)|(arp->arp_spa[0]);
-            ArpAddTable(arp->arp_sha,&addr);
+            addr.s_addr = (arp->arp_spa[3] << 24) | (arp->arp_spa[2] << 16) | (arp->arp_spa[1] << 8) | (arp->arp_spa[0]);
+            ArpAddTable(arp->arp_sha, &addr);
             ArpSend(soc, ARPOP_REPLY, Param.vmac, eh->ether_shost, Param.vmac, arp->arp_sha, arp->arp_tpa, arp->arp_spa);
         }
     }
@@ -397,7 +397,7 @@ int GetTargetMac(int soc, struct in_addr *daddr, u_int8_t dmac[6], int gratuitou
 
 int ArpCheckGArp(int soc)
 {
-    uint8_t dmac[6];
+    u_int8_t dmac[6];
     char buf1[80], buf2[80];
 
     if (GetTargetMac(soc, &Param.vip, dmac, 1)) // gratuitousフラグ=1

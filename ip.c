@@ -174,10 +174,10 @@ int IpRecvBufSearch(u_int16_t id)
 int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_t *data, int len)
 {
     struct ip *ip;
-    uint8_t option[1500];
-    uint16_t sum;
+    u_int8_t option[1500];
+    u_int16_t sum;
     int optionLen, no, off, plen;
-    uint8_t *ptr = data;
+    u_int8_t *ptr = data;
 
     if (len < (int)sizeof(struct ip))
     {
@@ -203,11 +203,11 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
 
     if (optionLen == 0)
     {
-        sum = checksum((uint8_t *)ip, sizeof(struct ip));
+        sum = checksum((u_int8_t *)ip, sizeof(struct ip));
     }
     else
     {
-        sum = checksum2((uint8_t *)ip, sizeof(struct ip), option, optionLen);
+        sum = checksum2((u_int8_t *)ip, sizeof(struct ip), option, optionLen);
     }
     if (sum != 0 && sum != 0xFFFF)
     {
@@ -242,8 +242,8 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
 int IpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *saddr, struct in_addr *daddr, u_int8_t proto, int dontFlagment, int ttl, u_int8_t *data, int len)
 {
     struct ip *ip;
-    uint8_t *dptr, *ptr, sbuf[ETHERMTU];
-    uint16_t id;
+    u_int8_t *dptr, *ptr, sbuf[ETHERMTU];
+    u_int16_t id;
     int lest, sndLen, off, flagment;
 
     if (dontFlagment && len > Param.MTU - sizeof(struct ip))
@@ -297,7 +297,7 @@ int IpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *sadd
         ip->ip_src.s_addr = saddr->s_addr;
         ip->ip_dst.s_addr = daddr->s_addr;
         ip->ip_sum = 0;
-        ip->ip_sum = checksum((uint8_t *)ip, sizeof(struct ip));
+        ip->ip_sum = checksum((u_int8_t *)ip, sizeof(struct ip));
         ptr += sizeof(struct ip);
 
         memcpy(ptr, dptr, sndLen);
@@ -314,7 +314,7 @@ int IpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *sadd
 
 int IpSend(int soc, struct in_addr *saddr, struct in_addr *daddr, u_int8_t proto, int dontFlagment, int ttl, u_int8_t *data, int len)
 {
-    uint8_t dmac[6];
+    u_int8_t dmac[6];
     char buf1[80];
     int ret;
 

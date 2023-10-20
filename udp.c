@@ -28,16 +28,16 @@ struct pseudo_ip
 {
     struct in_addr ip_src;
     struct in_addr ip_dst;
-    uint8_t dummy;
-    uint8_t ip_p;
-    uint16_t ip_len;
+    u_int8_t dummy;
+    u_int8_t ip_p;
+    u_int16_t ip_len;
 };
 
 #define UDP_TABLE_NO (16)
 
 typedef struct
 {
-    uint16_t port;
+    u_int16_t port;
 } UDP_TABLE;
 
 UDP_TABLE UdpTable[UDP_TABLE_NO]; // 受信ポートを保持するテーブル
@@ -57,7 +57,7 @@ int print_udp(struct udphdr *udp)
 u_int16_t UdpChecksum(struct in_addr *saddr, struct in_addr *daddr, u_int8_t proto, u_int8_t *data, int len)
 {
     struct pseudo_ip p_ip;
-    uint16_t sum;
+    u_int16_t sum;
 
     memset(&p_ip, 0, sizeof(struct pseudo_ip));
     p_ip.ip_src.s_addr = saddr->s_addr;
@@ -65,7 +65,7 @@ u_int16_t UdpChecksum(struct in_addr *saddr, struct in_addr *daddr, u_int8_t pro
     p_ip.ip_p = proto;
     p_ip.ip_len = htons(len);
 
-    sum = checksum2((uint8_t *)&p_ip, sizeof(struct pseudo_ip), data, len);
+    sum = checksum2((u_int8_t *)&p_ip, sizeof(struct pseudo_ip), data, len);
     if (sum == 0x0000)
     {
         sum = 0xFFFF;
@@ -201,7 +201,7 @@ int UdpSocketClose(u_int16_t port)
 
 int UdpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *saddr, struct in_addr *daddr, u_int16_t sport, u_int16_t dport, int dontFlagment, u_int8_t *data, int len)
 {
-    uint8_t *ptr, sbuf[64 * 1024];
+    u_int8_t *ptr, sbuf[64 * 1024];
     struct udphdr *udp;
 
     ptr = sbuf;
@@ -229,7 +229,7 @@ int UdpSendLink(int soc, u_int8_t smac[6], u_int8_t dmac[6], struct in_addr *sad
 
 int UdpSend(int soc, struct in_addr *saddr, struct in_addr *daddr, u_int16_t sport, u_int16_t dport, int dontFlagment, u_int8_t *data, int len)
 {
-    uint8_t *ptr, sbuf[64 * 1024];
+    u_int8_t *ptr, sbuf[64 * 1024];
     struct udphdr *udp;
 
     ptr = sbuf;
@@ -257,8 +257,8 @@ int UdpSend(int soc, struct in_addr *saddr, struct in_addr *daddr, u_int16_t spo
 int UdpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int len)
 {
     struct udphdr *udp;
-    uint8_t *ptr = data;
-    uint16_t sum;
+    u_int8_t *ptr = data;
+    u_int16_t sum;
     int udplen;
 
     udplen = len;

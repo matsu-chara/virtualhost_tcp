@@ -92,7 +92,7 @@ int print_dhcp(struct dhcp_packet *pa, int size)
         return -1;
     }
     end = 0;
-    while (ptr < (uint8_t *)pa + size)
+    while (ptr < (u_int8_t *)pa + size)
     {
         switch (*ptr)
         {
@@ -922,13 +922,13 @@ int print_dhcp(struct dhcp_packet *pa, int size)
 
 u_int8_t *dhcp_set_option(u_int8_t *ptr, int tag, int size, u_int8_t *buf)
 {
-    *ptr = (uint8_t)tag;
+    *ptr = (u_int8_t)tag;
     ptr++;
     if (size > 255)
     {
         size = 255;
     }
-    *ptr = (uint8_t)size;
+    *ptr = (u_int8_t)size;
     ptr++;
     memcpy(ptr, buf, size);
     ptr += size;
@@ -938,8 +938,8 @@ u_int8_t *dhcp_set_option(u_int8_t *ptr, int tag, int size, u_int8_t *buf)
 
 int dhcp_get_option(struct dhcp_packet *pa, int size, int opno, void *val)
 {
-    uint8_t cookie[4];
-    uint8_t *ptr;
+    u_int8_t cookie[4];
+    u_int8_t *ptr;
     int end, n;
 
     ptr = pa->options;
@@ -952,7 +952,7 @@ int dhcp_get_option(struct dhcp_packet *pa, int size, int opno, void *val)
         return -1;
     }
     end = 0;
-    while (ptr < (uint8_t *)pa + size)
+    while (ptr < (u_int8_t *)pa + size)
     {
         if (*ptr == 0)
         {
@@ -988,10 +988,10 @@ int dhcp_get_option(struct dhcp_packet *pa, int size, int opno, void *val)
 
 int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciaddr, struct in_addr *req_ip, struct in_addr *server)
 {
-    uint8_t *ptr;
-    uint8_t buf[512];
+    u_int8_t *ptr;
+    u_int8_t buf[512];
     int size;
-    uint32_t l;
+    u_int32_t l;
 
     memset(pa, 0, sizeof(struct dhcp_packet));
     pa->op = BOOTREQUEST;
@@ -1030,11 +1030,11 @@ int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciad
 
     if (req_ip != NULL)
     {
-        ptr = dhcp_set_option(ptr, 50, 4, (uint8_t *)&req_ip->s_addr); // Address Request
+        ptr = dhcp_set_option(ptr, 50, 4, (u_int8_t *)&req_ip->s_addr); // Address Request
     }
     if (server != NULL)
     {
-        ptr = dhcp_set_option(ptr, 54, 4, (uint8_t *)&server->s_addr); // DHCP Server Id
+        ptr = dhcp_set_option(ptr, 54, 4, (u_int8_t *)&server->s_addr); // DHCP Server Id
     }
 
     buf[0] = 1;                             // option 1 Subnet Mask
@@ -1043,7 +1043,7 @@ int MakeDhcpRequest(struct dhcp_packet *pa, u_int8_t mtype, struct in_addr *ciad
 
     ptr = dhcp_set_option(ptr, 255, 0, NULL); // END (オプションの終了位置)
 
-    size = ptr - (uint8_t *)pa;
+    size = ptr - (u_int8_t *)pa;
     return size;
 }
 
@@ -1060,7 +1060,7 @@ int DhcpSendDiscover(int soc)
     printf("--- DHCP ---{\n");
 
     // 1はdontFragment
-    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (u_int8_t *)&pa, size);
     print_dhcp(&pa, size);
     printf("}\n");
 
@@ -1081,7 +1081,7 @@ int DhcpSendRequest(int soc, struct in_addr *yiaddr, struct in_addr *server)
     printf("--- DHCP ---{\n");
 
     // 1はdontFragment
-    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    UdpSendLink(soc, Param.vmac, BcastMac, &saddr, &daddr, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (u_int8_t *)&pa, size);
     print_dhcp(&pa, size);
     printf("}\n");
 
@@ -1098,7 +1098,7 @@ int DhcpSendRequestUni(int soc)
     printf("--- DHCP ---{\n");
 
     // 1はdontFragment
-    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (u_int8_t *)&pa, size);
     print_dhcp(&pa, size);
     printf("}\n");
 
@@ -1115,7 +1115,7 @@ int DhcpSendRelease(int soc)
     printf("--- DHCP ---{\n");
 
     // 1はdontFragment
-    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (uint8_t *)&pa, size);
+    UdpSend(soc, &Param.vip, &Param.DhcpServer, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, 1, (u_int8_t *)&pa, size);
     print_dhcp(&pa, size);
     printf("}\n");
 

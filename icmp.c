@@ -81,8 +81,8 @@ int print_icmp(struct icmp *icmp)
 
 int IcmpSendEchoReply(int soc, struct ip *r_ip, struct icmp *r_icmp, u_int8_t *data, int len, int ip_ttl)
 {
-    uint8_t *ptr;
-    uint8_t sbuf[64 * 1024];
+    u_int8_t *ptr;
+    u_int8_t sbuf[64 * 1024];
     struct icmp *icmp;
 
     ptr = sbuf;
@@ -112,8 +112,8 @@ int IcmpSendEchoReply(int soc, struct ip *r_ip, struct icmp *r_icmp, u_int8_t *d
 int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
 {
     int psize;
-    uint8_t *ptr;
-    uint8_t sbuf[64 * 1024];
+    u_int8_t *ptr;
+    u_int8_t sbuf[64 * 1024];
     struct icmp *icmp;
 
     ptr = sbuf;
@@ -121,8 +121,8 @@ int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
     memset(icmp, 0, sizeof(struct icmp));
     icmp->icmp_type = ICMP_ECHO;
     icmp->icmp_code = 0;
-    icmp->icmp_hun.ih_idseq.icd_id = htons((uint16_t)getpid());
-    icmp->icmp_hun.ih_idseq.icd_seq = htons((uint16_t)seqNo);
+    icmp->icmp_hun.ih_idseq.icd_id = htons((u_int16_t)getpid());
+    icmp->icmp_hun.ih_idseq.icd_seq = htons((u_int16_t)seqNo);
     icmp->icmp_cksum = 0;
 
     ptr += ECHO_HDR_SIZE;
@@ -135,7 +135,7 @@ int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
         ptr++;
     }
 
-    icmp->icmp_cksum = checksum((uint8_t *)sbuf, ptr - sbuf);
+    icmp->icmp_cksum = checksum((u_int8_t *)sbuf, ptr - sbuf);
 
     printf("=== ICMP echo ===[\n");
     IpSend(soc, &Param.vip, daddr, IPPROTO_ICMP, 0, Param.IpTTL, sbuf, ptr - sbuf);
@@ -149,8 +149,8 @@ int IcmpSendEcho(int soc, struct in_addr *daddr, int seqNo, int size)
 
 int IcmpSendDestinationUnreachable(int soc, struct in_addr *daddr, struct ip *ip, u_int8_t *data, int len)
 {
-    uint8_t *ptr;
-    uint8_t sbuf[64 * 1024];
+    u_int8_t *ptr;
+    u_int8_t sbuf[64 * 1024];
     struct icmp *icmp;
 
     ptr = sbuf;
@@ -176,7 +176,7 @@ int IcmpSendDestinationUnreachable(int soc, struct in_addr *daddr, struct ip *ip
         ptr += len;
     }
 
-    icmp->icmp_cksum = checksum((uint8_t *)sbuf, ptr - sbuf);
+    icmp->icmp_cksum = checksum((u_int8_t *)sbuf, ptr - sbuf);
 
     printf("=== ICMP Destination Unreachable ==[\n");
     IpSend(soc, &Param.vip, daddr, IPPROTO_ICMP, 0, Param.IpTTL, sbuf, ptr - sbuf);
@@ -234,14 +234,14 @@ int IcmpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, struc
     struct icmp *icmp;
     u_int16_t sum;
     int icmpSize;
-    uint8_t *ptr = data;
+    u_int8_t *ptr = data;
 
     icmpSize = len;
     icmp = (struct icmp *)ptr;
     ptr += ECHO_HDR_SIZE;
     len -= ECHO_HDR_SIZE;
 
-    sum = checksum((uint8_t *)icmp, icmpSize);
+    sum = checksum((u_int8_t *)icmp, icmpSize);
     if (sum != 0 && sum != 0xFFFF)
     {
         printf("bad icmp checksum(%x, %x)\n", sum, icmp->icmp_cksum);
