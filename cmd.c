@@ -180,12 +180,11 @@ int DoCmdUdp(char **cmdline)
     u_int16_t port;
     int no, ret;
 
-    if ((ptr = strtok_r(NULL, "\r\n", cmdline)) == NULL)
+    if ((ptr = strtok_r(NULL, " \r\n", cmdline)) == NULL)
     {
         printf("DoCmdUdp:no arg\n");
         return -1;
     }
-
     if (strcmp(ptr, "open") == 0)
     {
         if ((ptr = strtok_r(NULL, " \r\n", cmdline)) == NULL)
@@ -222,6 +221,7 @@ int DoCmdUdp(char **cmdline)
             return -1;
         }
         sport = atoi(ptr);
+
         if ((p_addr = strtok_r(NULL, ":\r\n", cmdline)) == NULL)
         {
             printf("DoCmdUdp:send:%u no arg\n", sport);
@@ -276,32 +276,37 @@ int DoCmd(char *cmd)
         printf("udp send sport daddr:dport data : send udp\n");
         printf("end : end program\n");
         printf("---------------------------------------\n");
-        return (-1);
+        return -1;
     }
 
     if (strcmp(ptr, "arp") == 0)
     {
         DoCmdArp(&saveptr);
-        return (0);
+        return 0;
     }
     else if (strcmp(ptr, "ping") == 0)
     {
         DoCmdPing(&saveptr);
-        return (0);
+        return 0;
     }
     else if (strcmp(ptr, "ifconfig") == 0)
     {
         DoCmdIfconfig(&saveptr);
-        return (0);
+        return 0;
+    }
+    else if (strcmp(ptr, "udp") == 0)
+    {
+        DoCmdUdp(&saveptr);
+        return 0;
     }
     else if (strcmp(ptr, "end") == 0)
     {
         DoCmdEnd(&saveptr);
-        return (0);
+        return 0;
     }
     else
     {
         printf("DoCmd:unknown cmd : %s\n", ptr);
-        return (-1);
+        return -1;
     }
 }
