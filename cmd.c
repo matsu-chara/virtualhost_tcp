@@ -294,6 +294,10 @@ int DoCmd(char *cmd)
         DoCmdIfconfig(&saveptr);
         return 0;
     }
+	else if(strcmp(ptr,"netstat")==0){
+		DoCmdNetstat(&saveptr);
+		return(0);
+	}
     else if (strcmp(ptr, "udp") == 0)
     {
         DoCmdUdp(&saveptr);

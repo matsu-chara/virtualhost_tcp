@@ -22,7 +22,7 @@ Vagrant.configure("2") do |config|
     node.vm.network :private_network, ip:"192.168.33.12"
     node.vm.provision "shell", inline: <<-SHELL
       yum update -y
-      yum install -y dhcp
+      yum install -y dhcp nc
       sudo cat > /etc/dhcp/dhcpd.conf <<EOS
 #
 # DHCP Server Configuration file.
