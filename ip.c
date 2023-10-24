@@ -8,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <netpacket/packet.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #include <netinet/if_ether.h>
 #include <netinet/udp.h>
 #include <arpa/inet.h>
@@ -20,6 +21,7 @@
 #include "arp.h"
 #include "icmp.h"
 #include "udp.h"
+#include "tcp.h"
 
 extern PARAM Param;
 
@@ -215,6 +217,11 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
         return -1;
     }
 
+    // TCPでSYNCを受信した際にARPテーブルに相手が存在しないとSYNC+ACK応答ができなくなる
+    // 本来はARPで調べ直すべきだが、受信スレッドが1スレッドしかなく受信スレッド内でsendしてしまうと処理が永久にブロックされてしまうので
+    // 回避策としてArpTableに入れている。
+    ArpAddTable(eh->ether_shost, &ip->ip_src);
+
     plen = ntohs(ip->ip_len) - ip->ip_hl * 4; // packet length
     no = IpRecvBufAdd(ntohs(ip->ip_id));
     off = (ntohs(ip->ip_off) & IP_OFFMASK) * 8; // offsetの8倍が実際のオフセットバイト数
@@ -232,6 +239,10 @@ int IpRecv(int soc, u_int8_t *raw, int raw_len, struct ether_header *eh, u_int8_
         else if (ip->ip_p == IPPROTO_UDP)
         {
             UdpRecv(soc, eh, ip, IpRecvBuf[no].data, IpRecvBuf[no].len);
+        }
+        else if (ip->ip_p == IPPROTO_TCP)
+        {
+            TcpRecv(soc, eh, ip, IpRecvBuf[no].data, IpRecvBuf[no].len);
         }
         IpRecvBufDel(ntohs(ip->ip_id));
     }

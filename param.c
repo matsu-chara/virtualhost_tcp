@@ -1,18 +1,10 @@
 #include <stdio.h>
-// #include <ctype.h>
-// #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <errno.h>
-// #include <signal.h>
-// #include <time.h>
-// #include <sys/stat.h>
-// #include <sys/param.h>
-// #include <sys/types.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <net/ethernet.h>
-
+#include <netinet/tcp.h>
 #include "param.h"
 #include "ether.h"
 
@@ -24,6 +16,7 @@ int SetDefaultParam()
 {
     Param.MTU = DEFAULT_MTU;
     Param.IpTTL = DEFAULT_IP_TTL;
+    Param.MSS = DEFAULT_MSS;
 
     return 0;
 }
@@ -76,6 +69,18 @@ int ReadParam(char *fname)
                     {
                         printf("ReadParam:MTU(%d) <= ETHERMTU(%d)\n", Param.MTU, ETHERMTU);
                         Param.MTU = ETHERMTU;
+                    }
+                }
+            }
+            else if (strcmp(ptr, "MSS") == 0)
+            {
+                if ((ptr = strtok_r(NULL, "\r\n", &saveptr)) != NULL)
+                {
+                    Param.MSS = atoi(ptr);
+                    if (Param.MSS > DEFAULT_MSS)
+                    {
+                        printf("ReadParam:MSS(%d) <= DEFAULT_MSS(%d)\n", Param.MSS, DEFAULT_MSS);
+                        Param.MSS = DEFAULT_MSS;
                     }
                 }
             }

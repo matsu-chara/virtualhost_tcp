@@ -19,6 +19,7 @@
 #include "sock.h"
 #include "ip.h"
 #include "dhcp.h"
+#include "tcp.h"
 
 int EndFlag = 0;
 int DeviceSoc; // 送受信するPF_PACKETのディスクリプタを格納(PF = protocol family.)
@@ -110,6 +111,8 @@ int ending()
     struct ifreq if_req;
 
     printf("ending\n");
+
+    TcpAllSocketClose(DeviceSoc);
 
     if (Param.DhcpServer.s_addr != 0)
     {
@@ -252,6 +255,7 @@ int main(int argc, char *argv[])
 
     printf("IP-TTL=%d\n", Param.IpTTL);
     printf("MTU=%d\n", Param.MTU);
+    printf("MSS=%d\n", Param.MSS);
 
     srandom(time(NULL));
 
