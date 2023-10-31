@@ -7,6 +7,8 @@
 
 #include "param.h"
 #include "sock.h"
+#include "ether.h"
+#include "ip.h"
 #include "tcp.h"
 
 extern PARAM Param;
@@ -37,7 +39,7 @@ typedef struct
     {
         u_int32_t nxt; // 次の受信
         u_int32_t wnd; // 受信ウィンドウ
-        u_int32_t irs; // 初期送信シーケンス番号
+        u_int32_t irs; // 初期受信シーケンス番号
     } rcv;
     int status;
 } TCP_TABLE; // TCB相当の構造体 (Transmission Control Block)
@@ -680,11 +682,15 @@ int TcpSendData(int soc, u_int16_t sport, u_int8_t *data, int len)
     tcp = (struct tcphdr *)ptr;
     memset(tcp, 0, sizeof(struct tcphdr));
     tcp->seq = htonl(TcpTable[no].snd.una);
-    tcp->ack_seq = htonl(TcpTable[no].snd.una);
+    tcp->ack_seq = htonl(TcpTable[no].rcv.nxt); // ピギーバックするため rcv.nxt を詰める。（次二相手が送ってくるメッセージの seq が rcv.nxt になる
     tcp->source = htons(TcpTable[no].myPort);
     tcp->dest = htons(TcpTable[no].dstPort);
     tcp->doff = 5;
     tcp->urg = 0;
+    // 常にピギーバックしている (dataと同時に前回の受信セグメントに対するack応答を実施している)
+    // ただし、 recv 処理で常に ack を返している（遅延確認応答するようになってない）ので、意味はそんなにないかもしれない
+    // 遅延確認応答する場合は、セグメント受信時に前回の受信セグメントに対して ack を返信済みか？を判定して返信済みだったら ack を保留するような処理を入れれば良い
+    // 本実装では  ack 応答を返すと snd.nxt = snd.una になるので、それを判定すれば良さそう。
     tcp->ack = 1;
     tcp->psh = 0;
     tcp->rst = 0;
@@ -717,6 +723,7 @@ int TcpSend(int soc, u_int16_t sport, u_int8_t *data, int len)
     u_int8_t *ptr;
     int count, no;
     int lest, sndLen;
+
     if ((no = TcpSearchTable(sport) == -1))
     {
         return -1;
@@ -745,7 +752,31 @@ int TcpSend(int soc, u_int16_t sport, u_int8_t *data, int len)
         count = 0;
         do
         {
-            TcpSendData(soc, sport, ptr, sndLen);
+            // Nagle アルゴリズムでデータをバッファにためて一括送信といったことはしない。
+            // 以下を確認しどちらかを満たしている場合にのみデータを送るようにすると
+            // レイテンシを犠牲にスループットを向上できる
+            // - すべての送信済みデータに ack が帰ってきているか (snd.una == snd.nxt)
+            // - sndLen = MSS のデータを送信できるか
+            TcpSendData(soc, sport, ptr, sndLen); // 内部で snd.nxt = snd.una + sndLen になる
+
+            // 再送間隔が長ければパケット消失が発生してから無駄な待ちが発生するので、スループットが低下する
+            // 再送間隔が短ければパケット消失のご検知が発生し、無駄な再送が発生する
+            // 待ち時間は RTT から算出すると良い
+            //   - ackを受信した時刻 - sendした時刻
+            //   - ackまでにかかったタイマーの割り込み回数 (本実装では count )
+            // see: https://www.nic.ad.jp/ja/materials/iw/1999/proceedings/C03.PDF
+            // rtt は常に変動するので srtt としてタイマ割り込みごとに平滑化する形で更新する
+            // srtt = α × srtt + (1 - α) * rtt
+            // ※ α の推奨値は 0.9
+            //
+            // 本実装では
+            // rtt = DUMMY_WAIT_MS * (count + 1) なので while を抜けたあとに以下のように更新できそう
+            // if (srtt == 0) { srtt = rtt; } else { srtt = 0.9 * srtt + 0.1 * DUMMY_WAIT_MS * (count + 1); }
+            //
+            // タイマー割り込み頻度であるDUMMY_WAIT_MSは本実装では100msec。
+            // 再送タイマはスロータイマー・ファストタイマーでいうと前者で、berkly実装だと 500msec らしい
+            //
+            // 実際のタイムアウト時間は rto = 平均 rtt + 4 × 平均偏差 といった式や 指数バックオフなどで制御する。（タイムアウトが過ぎたら再送する）
             DummyWait(DUMMY_WAIT_MS * (count + 1));
             printf("TcpSend:una=%u,nextSeq=%u\n", TcpTable[no].snd.una, -TcpTable[no].snd.iss, TcpTable[no].snd.nxt - TcpTable[no].snd.iss);
             count++;
@@ -754,7 +785,7 @@ int TcpSend(int soc, u_int16_t sport, u_int8_t *data, int len)
                 printf("TcpSend:retry over\n");
                 return 0;
             }
-        } while (TcpTable[no].snd.una != TcpTable[no].snd.nxt);
+        } while (TcpTable[no].snd.una != TcpTable[no].snd.nxt); // ack を受信すると　snd.nxt = snd.una に更新されるので ack 受信まで待つという意味になる。
 
         ptr += sndLen;
         lest -= sndLen;
@@ -765,4 +796,233 @@ int TcpSend(int soc, u_int16_t sport, u_int8_t *data, int len)
     return 1;
 }
 
-int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int len);
+int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int len)
+{
+    struct tcphdr *tcp;
+    u_int8_t *ptr = data;
+    u_int16_t sum;
+    int no, lest, tcplen;
+
+    tcplen = len;
+
+    sum = TcpChecksum(&ip->ip_src, &ip->ip_dst, ip->ip_p, data, tcplen);
+    if (sum != 0 && sum != 0xFFFF)
+    {
+        printf("TcpRecv:bad tcp checksum(%x)\n", sum);
+        return -1;
+    }
+
+    tcp = (struct tcphdr *)ptr;
+    ptr += sizeof(struct tcphdr);
+    tcplen -= sizeof(struct tcphdr);
+
+    printf("--- recv ---[\n");
+    print_ether_header(eh);
+    print_ip(ip);
+    print_tcp(tcp);
+
+    lest = tcp->doff * 4 - sizeof(struct tcphdr); // data_offsetは4byte単位
+    if (lest > 0)
+    {
+        print_tcp_optpad(ptr, lest);
+        ptr += lest;
+        tcplen -= lest;
+    }
+    print_hex(ptr, tcplen);
+    printf("]\n");
+
+    if ((no = TcpSearchTable(ntohs(tcp->dest))) != -1)
+    {
+        if (TcpTable[no].rcv.nxt != 0 && ntohl(tcp->seq) != TcpTable[no].rcv.nxt)
+        {
+            // 連番以外だったらDROPする
+            printf("TcpRecv:%d:seq(%u)!=rcv.nxt(%u)\n", no, ntohl(tcp->seq), TcpTable[no].rcv.nxt);
+        }
+        else
+        {
+            if (TcpTable[no].status == TCP_SYN_SENT)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:SYN_SENT:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->syn == 1)
+                {
+                    printf("TcpRecv:%d:SYN_SENT:syn\n", no);
+                    TcpTable[no].status = TCP_SYN_RECV;
+                    if (tcp->ack == 1)
+                    {
+                        printf("TcpRecv:SYN_RECV:syn-ack:%d\n", no);
+                        TcpTable[no].status = TCP_ESTABLISHED;
+                    }
+                    TcpTable[no].rcv.irs = ntohl(tcp->seq);
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + 1; // 相手に ACK を返して自分は ESTABLISHED になるから次のデータは中身があるはず。そのため rcv.nxt をインクメントする。
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSendAck(soc, no);
+                }
+            }
+            else if (TcpTable[no].status == TCP_SYN_RECV)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:SYN_RECV:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE : TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->ack == 1)
+                {
+                    printf("TcpRecv:%d:SYN_RECV:ack\n", no);
+                    TcpTable[no].status = TCP_ESTABLISHED;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                }
+            }
+            else if (TcpTable[no].status == TCP_LISTEN)
+            {
+                if (tcp->syn == 1)
+                {
+                    printf("TcpRecv:%d:LISTEN:syn\n", no);
+                    TcpTable[no].status = TCP_SYN_RECV;
+                    TcpTable[no].dstAddr.s_addr = ip->ip_src.s_addr;
+                    TcpTable[no].dstPort = ntohs(tcp->source);
+                    TcpTable[no].rcv.irs = ntohl(tcp->seq) + 1;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + 1;
+                    TcpSendSyn(soc, no, 1);
+                }
+            }
+            else if (TcpTable[no].status == TCP_FIN_WAIT1)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:FIN_WAT1:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->fin == 1)
+                {
+                    printf("TcpRecv:%d:FIN_WAIT1:fin\n", no);
+                    TcpTable[no].status = TCP_CLOSING;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + tcplen + 1;
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSendAck(soc, no);
+                    if (tcp->ack == 1)
+                    {
+                        printf("TcpRecv:FIN_WAIT1: fin-ack:%d\n", no);
+                        TcpTable[no].status = TCP_TIME_WAIT;
+                    }
+                }
+                else if (tcp->ack == 1)
+                {
+                    printf("TcpRecv:%d:FIN_WAIT1:ack\n", no);
+                    TcpTable[no].status = TCP_FIN_WAIT2;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                }
+            }
+            else if (TcpTable[no].status == TCP_FIN_WAIT2)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:FIN_WAIT2:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->fin == 1)
+                {
+                    printf("TcpRecv:%d:FIN_WAIT2:fin\n", no);
+                    TcpTable[no].status = TCP_TIME_WAIT;
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen + 1;
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSendAck(soc, no);
+                }
+            }
+            else if (TcpTable[no].status == TCP_CLOSING)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:FIN_CLOSING:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->ack == 1)
+                {
+                    printf("TcpRecv:%d:CLOSING:ack\n", no);
+                    TcpTable[no].status = TCP_TIME_WAIT;
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                }
+            }
+            else if (TcpTable[no].status == TCP_CLOSE_WAIT)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:CLOSE_WAIT:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->ack == 1)
+                {
+                    printf("TcpRecv:%d:CLOSE_WAIT:ack\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+            }
+            else if (TcpTable[no].status == TCP_ESTABLISHED)
+            {
+                if (tcp->rst == 1)
+                {
+                    printf("TcpRecv:%d:ESTABLISHED:rst\n", no);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSocketClose(TcpTable[no].myPort);
+                }
+                else if (tcp->fin == 1)
+                {
+                    printf("TcpRecv:%d:ESTABLISHED:fin\n", no);
+                    TcpTable[no].status = TCP_CLOSE_WAIT;
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen + 1;
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSendFin(soc, no);
+                }
+                else if (tcplen > 0)
+                {
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen;
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                    TcpSendAck(soc, no);
+                }
+                else
+                {
+                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].snd.una = ntohl(tcp->ack_seq);
+                }
+            }
+            TcpTable[no].rcv.wnd = ntohs(tcp->window);
+        }
+        printf("TcpRecv:%d:%s:S[%u,%u,%u,%u]:R[%u,%u,%u]\n", no, TcpStatusStr(TcpTable[no].status),
+               TcpTable[no].snd.una - TcpTable[no].snd.iss, TcpTable[no].snd.nxt - TcpTable[no].snd.iss, TcpTable[no].snd.wnd, TcpTable[no].snd.iss,
+               TcpTable[no].rcv.nxt - TcpTable[no].rcv.irs, TcpTable[no].rcv.wnd, TcpTable[no].rcv.irs);
+    }
+    else
+    {
+        printf("TcpRecv:no target:%u\n", ntohs(tcp->dest));
+        TcpSendRstDirect(soc, eh, ip, tcp);
+    }
+
+    return 0;
+}
