@@ -1,8 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <pthread.h>
 
 #include "param.h"
@@ -46,21 +49,21 @@ typedef struct
 
 TCP_TABLE TcpTable[TCP_TABLE_NO];
 
-enum
-{
-    // see https://support.eforce.co.jp/viewtopic.php?t=354
-    TCP_ESTABLISHED = 1, // TCPハンドシェークが成立し、TCP接続済の状態
-    TCP_SYN_SENT,        // TCPクライアントとして、SYN要求を送ってTCPサーバからの応答を待っている状態
-    TCP_SYN_RECV,        // TCPサーバとしてSYN要求を受信し、SYN/ACKを送信してTCPクライアントからのACKを待っている状態
-    TCP_FIN_WAIT1,       // ESTABLISHED状態の時、FINを送信して、対向からのFINまたはACKを待っている状態
-    TCP_FIN_WAIT2,       // FIN-WAIT1状態の時、送信したFINに対するACKを受信した状態
-    TCP_TIME_WAIT,       // FIN-WAIT2からの遷移の場合、FIN受信のACKを送信した状態。CLOSINGからの遷移の場合、送信FINのACKを受信した状態
-    TCP_CLOSE,           // TCP接続無しの状態
-    TCP_CLOSE_WAIT,      // ESTABLISHED状態の時、対向からのFINを受信した状態
-    TCP_LAST_ACK,        // CLOSE-WAIT状態の時、FINを送信して、ACKを待っている状態
-    TCP_LISTEN,          // TCPサーバとしてSYN要求を待っている状態
-    TCP_CLOSING          // FIN-WAIT1状態の時、FINを受信後そのFINに対するACKを送信した状態
-};
+// see https://support.eforce.co.jp/viewtopic.php?t=354
+// enum
+// {
+// TCP_ESTABLISHED = 1, // TCPハンドシェークが成立し、TCP接続済の状態
+// TCP_SYN_SENT,        // TCPクライアントとして、SYN要求を送ってTCPサーバからの応答を待っている状態
+// TCP_SYN_RECV,        // TCPサーバとしてSYN要求を受信し、SYN/ACKを送信してTCPクライアントからのACKを待っている状態
+// TCP_FIN_WAIT1,       // ESTABLISHED状態の時、FINを送信して、対向からのFINまたはACKを待っている状態
+// TCP_FIN_WAIT2,       // FIN-WAIT1状態の時、送信したFINに対するACKを受信した状態
+// TCP_TIME_WAIT,       // FIN-WAIT2からの遷移の場合、FIN受信のACKを送信した状態。CLOSINGからの遷移の場合、送信FINのACKを受信した状態
+// TCP_CLOSE,           // TCP接続無しの状態
+// TCP_CLOSE_WAIT,      // ESTABLISHED状態の時、対向からのFINを受信した状態
+// TCP_LAST_ACK,        // CLOSE-WAIT状態の時、FINを送信して、ACKを待っている状態
+// TCP_LISTEN,          // TCPサーバとしてSYN要求を待っている状態
+// TCP_CLOSING          // FIN-WAIT1状態の時、FINを受信後そのFINに対するACKを送信した状態
+// };
 
 pthread_rwlock_t TcpTableLock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -242,9 +245,7 @@ int TcpShowTable()
 
 u_int16_t TcpSearchFreePort()
 {
-    u_int16_t i;
-
-    for (int i = 32768; i < 61000; i++)
+    for (u_int16_t i = 32768; i < 61000; i++)
     {
         if (TcpSearchTable(i) == -1)
         {
@@ -288,7 +289,7 @@ int TcpSocketClose(u_int16_t port)
         return -1;
     }
     pthread_rwlock_wrlock(&TcpTableLock);
-    TcpTable[no].myPort == 0;
+    TcpTable[no].myPort = 0;
     pthread_rwlock_unlock(&TcpTableLock);
 
     return 0;
@@ -636,7 +637,7 @@ int TcpReset(int soc, u_int16_t sport)
 {
     int no;
 
-    if ((no = TcpSearchTable) == -1)
+    if ((no = TcpSearchTable(sport)) == -1)
     {
         return -1;
     }
@@ -778,7 +779,7 @@ int TcpSend(int soc, u_int16_t sport, u_int8_t *data, int len)
             //
             // 実際のタイムアウト時間は rto = 平均 rtt + 4 × 平均偏差 といった式や 指数バックオフなどで制御する。（タイムアウトが過ぎたら再送する）
             DummyWait(DUMMY_WAIT_MS * (count + 1));
-            printf("TcpSend:una=%u,nextSeq=%u\n", TcpTable[no].snd.una, -TcpTable[no].snd.iss, TcpTable[no].snd.nxt - TcpTable[no].snd.iss);
+            printf("TcpSend:una=%u,nextSeq=%u\n", TcpTable[no].snd.una - TcpTable[no].snd.iss, TcpTable[no].snd.nxt - TcpTable[no].snd.iss);
             count++;
             if (count > RETRY_COUNT)
             {
@@ -870,7 +871,8 @@ int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
                 if (tcp->rst == 1)
                 {
                     printf("TcpRecv:%d:SYN_RECV:rst\n", no);
-                    TcpTable[no].status = TCP_CLOSE : TcpTable[no].rcv.nxt = ntohl(tcp->seq);
+                    TcpTable[no].status = TCP_CLOSE;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                     TcpSocketClose(TcpTable[no].myPort);
                 }
@@ -940,7 +942,7 @@ int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
                 {
                     printf("TcpRecv:%d:FIN_WAIT2:fin\n", no);
                     TcpTable[no].status = TCP_TIME_WAIT;
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen + 1;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + tcplen + 1;
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                     TcpSendAck(soc, no);
                 }
@@ -959,7 +961,7 @@ int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
                 {
                     printf("TcpRecv:%d:CLOSING:ack\n", no);
                     TcpTable[no].status = TCP_TIME_WAIT;
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                 }
             }
@@ -977,7 +979,7 @@ int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
                 {
                     printf("TcpRecv:%d:CLOSE_WAIT:ack\n", no);
                     TcpTable[no].status = TCP_CLOSE;
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                     TcpSocketClose(TcpTable[no].myPort);
                 }
@@ -996,19 +998,19 @@ int TcpRecv(int soc, struct ether_header *eh, struct ip *ip, u_int8_t *data, int
                 {
                     printf("TcpRecv:%d:ESTABLISHED:fin\n", no);
                     TcpTable[no].status = TCP_CLOSE_WAIT;
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen + 1;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + tcplen + 1;
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                     TcpSendFin(soc, no);
                 }
                 else if (tcplen > 0)
                 {
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq) + tcplen;
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq) + tcplen;
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                     TcpSendAck(soc, no);
                 }
                 else
                 {
-                    TcpTable[no].rcv.nxt = ntol(tcp->seq);
+                    TcpTable[no].rcv.nxt = ntohl(tcp->seq);
                     TcpTable[no].snd.una = ntohl(tcp->ack_seq);
                 }
             }

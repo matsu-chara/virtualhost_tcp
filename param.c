@@ -79,7 +79,7 @@ int ReadParam(char *fname)
                     Param.MSS = atoi(ptr);
                     if (Param.MSS > DEFAULT_MSS)
                     {
-                        printf("ReadParam:MSS(%d) <= DEFAULT_MSS(%d)\n", Param.MSS, DEFAULT_MSS);
+                        printf("ReadParam:MSS(%d) <= DEFAULT_MSS(%ld)\n", Param.MSS, DEFAULT_MSS);
                         Param.MSS = DEFAULT_MSS;
                     }
                 }
