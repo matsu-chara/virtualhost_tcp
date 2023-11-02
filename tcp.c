@@ -215,7 +215,7 @@ int TcpShowTable()
 
     pthread_rwlock_rdlock(&TcpTableLock);
 
-    for (int i = 0; TCP_TABLE_NO; i++)
+    for (int i = 0; i < TCP_TABLE_NO; i++)
     {
         if (TcpTable[i].myPort != 0)
         {
