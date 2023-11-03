@@ -18,5 +18,11 @@ sudo ./MyEth
 nc -lu 10000
 # udp で 送信（ node1 で `udp open 10005` していればメッセージを送信できる）
 nc -u 192.168.33.100 10005
-foobar
+
+# 
+# tcp で listen （ node1 から `tcp connect 20000 192.168.33.12:10005 => tcp send 20000 foobar` でメッセージを受け取れる）
+nc -lu 10005
+# tcp で 送信（ node1 で `tcp listen 10005` していればメッセージを送信できる）
+nc 192.168.33.100 10005
+
 ```

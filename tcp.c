@@ -561,7 +561,7 @@ int TcpClose(int soc, u_int16_t sport)
     int count, no;
     time_t now_t;
 
-    if ((no = TcpAddTable(sport)) == -1)
+    if ((no = TcpSearchTable(sport)) == -1)
     {
         return -1;
     }
