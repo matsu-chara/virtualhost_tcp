@@ -26,3 +26,19 @@ nc -lu 10005
 nc 192.168.33.100 10005
 
 ```
+
+# http to somewhere
+
+MyEth.ini を以下のように書き換える
+
+```
+device=eth0
+vip=192.168.33.11
+vmask=192.168.33.0
+gateway=10.0.2.2
+```
+
+```
+tcp connect 10000 $(アクセス先のip):80
+tcp send 10000 GET / HTTP/1.1\n\n
+```
